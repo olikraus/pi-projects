@@ -59,7 +59,7 @@ drv8830_t mot0;
 drv8830_t mot1;
 
 /* will call exit(1) if there is any fault condition active */
-void drv8830_check_fault_condition(drv8830_t *drv8830, const char *hint)
+int drv8830_check_fault_condition(drv8830_t *drv8830, const char *hint)
 {
 	int val;
 	val = wiringPiI2CReadReg8(drv8830->fd, 1);
@@ -72,25 +72,9 @@ void drv8830_check_fault_condition(drv8830_t *drv8830, const char *hint)
 		if ( val & 16 ) printf("drv8830 ILIMT: Extended current limit event\n");
 		if ( val & 1 )
 			exit(1);
+		return 1;		// none critical fault
 	}
-}
-
-
-void drv8830_init(drv8830_t *drv8830, uint8_t address)
-{
-	static char s[64];
-	drv8830->address = address;	
-	drv8830->speed = 0x06;
-	drv8830->mode = DRV8830_MODE_STANDBY;
-	drv8830->fd = wiringPiI2CSetup(address) ;
-	if ( drv8830->fd < 0 )
-	{
-		sprintf(s, "i2c drv8830 %02x init", drv8830->address);
-		perror(s);
-		exit(1);		
-	}
-	wiringPiI2CWriteReg8(drv8830->fd, 0, 128) ;  // clear any events
-	drv8830_check_fault_condition(drv8830, "init");	
+	return 0; // no fault
 }
 
 void drv8830_send_i2c(drv8830_t *drv8830, uint8_t idx, uint8_t val)
@@ -105,6 +89,31 @@ void drv8830_send_i2c(drv8830_t *drv8830, uint8_t idx, uint8_t val)
 	}
 }
 
+void drv8830_init(drv8830_t *drv8830, uint8_t address)
+{
+	static char s[64];
+	drv8830->address = address;	
+	drv8830->speed = 0x06;
+	drv8830->mode = DRV8830_MODE_STANDBY;
+	drv8830->fd = wiringPiI2CSetup(address) ;
+	if ( drv8830->fd < 0 )
+	{
+		sprintf(s, "i2c drv8830 %02x init", drv8830->address);
+		perror(s);
+		exit(1);		
+	}
+	wiringPiI2CWriteReg8(drv8830->fd, 1, 128) ;  // clear any events
+	drv8830_send_i2c(drv8830, 0, (6<<2) | DRV8830_MODE_STANDBY);
+	drv8830_check_fault_condition(drv8830, "init");	
+}
+
+
+void drv8830_idle(drv8830_t *drv8830)
+{
+	drv8830_send_i2c(drv8830, 0, (6<<2) | DRV8830_MODE_STANDBY);
+	drv8830_check_fault_condition(drv8830, "idle");	
+}
+
 void drv8830_move(drv8830_t *drv8830, uint8_t dir, uint8_t speed)
 {
 	uint8_t mode;
@@ -116,15 +125,13 @@ void drv8830_move(drv8830_t *drv8830, uint8_t dir, uint8_t speed)
 		speed = 6;
 	if ( speed > 0x03f )
 		speed = 0x03f;
+	drv8830_check_fault_condition(drv8830, "move") ;
 	drv8830_send_i2c(drv8830, 0, (speed<<2) | mode);
-	drv8830_check_fault_condition(drv8830, "move");
+	wiringPiI2CWriteReg8(drv8830->fd, 1, 128) ;  // clear any events
+	//delay(400);
+	drv8830_check_fault_condition(drv8830, "move") ;
 }
 
-void drv8830_idle(drv8830_t *drv8830)
-{
-	drv8830_send_i2c(drv8830, 0, (6<<2) | DRV8830_MODE_STANDBY);
-	drv8830_check_fault_condition(drv8830, "idle");	
-}
 
 void drv8830_break(drv8830_t *drv8830)
 {
@@ -163,7 +170,6 @@ int main(int argc, char **argv)
 	// digitalWrite (9, HIGH) ; 
 	
 	drv8830_init(&mot0, 0x060);
-	drv8830_idle(&mot0);	
 	delay(100);
 	drv8830_move(&mot0, 0, 20);
 	delay(1000);
