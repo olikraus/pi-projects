@@ -3,7 +3,10 @@
 
 	http://wiringpi.com/reference/
 	
-	gcc -Wall -o blink blink.c -lwiringPi
+	gcc -Wall -o drv8830 drv8830.c -lwiringPi
+	
+	for i in {1..5}; do ./drv8830; done
+	
 
 	https://files.seeedstudio.com/wiki/Grove-Mini_I2C_Motor_Driver_v1.0/res/DRV8830.pdf
 	
@@ -70,9 +73,11 @@ int drv8830_check_fault_condition(drv8830_t *drv8830, const char *hint)
 		if ( val & 4 ) printf("drv8830 UVLO: Undervoltage lockout\n");
 		if ( val & 8 ) printf("drv8830 OTS: Overtemperature condition\n");
 		if ( val & 16 ) printf("drv8830 ILIMT: Extended current limit event\n");
+		/*
 		if ( val & 1 )
 			exit(1);
-		return 1;		// none critical fault
+		*/
+		return 1;		// fault
 	}
 	return 0; // no fault
 }
@@ -142,7 +147,7 @@ void drv8830_break(drv8830_t *drv8830)
 void drv8830_ramp(drv8830_t *drv8830, uint8_t dir, int from, int to, int msec)
 {
 	int start, curr,next, end;
-	int offset = 100;
+	int offset = 300;
 	int speed; 
 	start = millis();
 	end = start + msec;
@@ -168,14 +173,45 @@ int main(int argc, char **argv)
 	
 	// pinMode (9, OUTPUT) ;
 	// digitalWrite (9, HIGH) ; 
+/*
+	revolutions = k * speed * time
+	1/2 = 20 * 615/k		--> k = 24600
+        1/2 = 22 * 545/k		--> k = 23980
+	1/2 = 30 * 408/k		--> k = 24480
 	
+*/
 	drv8830_init(&mot0, 0x060);
 	delay(100);
-	drv8830_move(&mot0, 0, 20);
-	delay(1000);
+	drv8830_move(&mot0, 0, 22);
+	delay(554);
+	if ( drv8830_check_fault_condition(&mot0, "post move")  )
+	{
+		drv8830_move(&mot0, 1, 60);
+		delay(40);
+		drv8830_move(&mot0, 0, 60);
+		delay(40);
+		drv8830_move(&mot0, 1, 60);
+		delay(40);
+		drv8830_move(&mot0, 0, 60);
+		delay(40);
+		
+	}
+	/*
+	drv8830_move(&mot0, 0, 40);
+	delay(500);
+	drv8830_move(&mot0, 0, 50);
+	delay(500);
+	drv8830_move(&mot0, 0, 40);
+	delay(500);
+	drv8830_move(&mot0, 0, 30);
+	delay(500);
+	*/
 	//drv8830_idle(&mot0);	
-	//drv8830_ramp(&mot0, 0, 6, 20, 1000);
+	//drv8830_ramp(&mot0, 0, 40, 50, 5000);
 	//drv8830_ramp(&mot0, 0, 20, 6, 1000);
-	drv8830_idle(&mot0);	
+	//drv8830_idle(&mot0);
+	drv8830_break(&mot0);	
+	delay(500);
 	return 0;
 }
+
