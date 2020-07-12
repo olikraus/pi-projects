@@ -109,6 +109,7 @@ void drv8830_init(drv8830_t *drv8830, uint8_t address)
 	}
 	wiringPiI2CWriteReg8(drv8830->fd, 1, 128) ;  // clear any events
 	drv8830_send_i2c(drv8830, 0, (6<<2) | DRV8830_MODE_STANDBY);
+	delay(10);
 	drv8830_check_fault_condition(drv8830, "init");	
 }
 
@@ -130,11 +131,10 @@ void drv8830_move(drv8830_t *drv8830, uint8_t dir, uint8_t speed)
 		speed = 6;
 	if ( speed > 0x03f )
 		speed = 0x03f;
-	drv8830_check_fault_condition(drv8830, "move") ;
+	//drv8830_check_fault_condition(drv8830, "move") ;
 	drv8830_send_i2c(drv8830, 0, (speed<<2) | mode);
 	wiringPiI2CWriteReg8(drv8830->fd, 1, 128) ;  // clear any events
-	//delay(400);
-	drv8830_check_fault_condition(drv8830, "move") ;
+	//drv8830_check_fault_condition(drv8830, "move") ;
 }
 
 
@@ -144,28 +144,70 @@ void drv8830_break(drv8830_t *drv8830)
 	drv8830_check_fault_condition(drv8830, "break");	
 }
 
-void drv8830_ramp(drv8830_t *drv8830, uint8_t dir, int from, int to, int msec)
+/*
+
+	Prototype:
+		int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
+	Description:
+		Rotate by a specific amount of degree
+	Args:
+		drv8830: pointer to the drv8830 struct
+		dir: 0 or 1
+		speed: value between 0x06 and 0x3f. Minium speed seems to be 0x0f
+		degree: angular value in degree, one full rotation: 360
+*/
+int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 {
-	int start, curr,next, end;
-	int offset = 300;
-	int speed; 
-	start = millis();
-	end = start + msec;
+	/*
+		The k factor is derived by several experiments.
+		It is optimized for speed=20.
+		k should be higher for speed < 20 and should be smaller for speed > 20;
+	
+		speed=15 --> k=84
+		speed=34 --> k=69
+	        slope = -28/(50-15) = -28/35
+	
+		Do a little bit of k factor compensation so that the degree value
+		is more or less ok between speed 15 and 30
+		Looks like this value also depends on the engine temperature.
+	*/
+	
+	int k = 84 - ((speed-15)*28)/35;
+	//int k = 84;
+	int min_time = 350;
+	int time = degree*k/speed;
+	
+	if ( speed < 15 )
+	{
+		printf("speed too small: increase speed! time=%d, speed=%d, r=%d\n", time, speed, degree);
+		return 0;
+	}		
+	
+	if ( time < min_time )
+	{
+		printf("time too small: reduce speed! time=%d, speed=%d, r=%d\n", time, speed, degree);
+		return 0;
+	}
+	
+	printf("time=%d, speed=%d, degree=%d, k=%d\n", time, speed, degree, k);
 	for(;;)
 	{
-		curr = millis();
-		if ( end+offset <= curr )
+		drv8830_move(&mot0, dir, speed);
+		delay(min_time);
+		if ( drv8830_check_fault_condition(&mot0, "post move")  )
+		{
+			drv8830_move(&mot0, 1-dir, 60);
+			delay(30);
+		}
+		else
+		{
+			delay(time-350);
 			break;
-		speed = from+ ((to-from)*(curr-start))/(msec);
-		printf("start=%d end=%d curr=%d speed=%d\n", start, end, curr, speed);
-		drv8830_move(drv8830, dir,  speed);
-		next = curr + offset;
-		while( next > millis() )
-			;
+		}
 	}
-	drv8830_move(drv8830, dir, to);
+	drv8830_break(&mot0);	
+	return 1;
 }
-
 
 int main(int argc, char **argv)
 {
@@ -173,45 +215,11 @@ int main(int argc, char **argv)
 	
 	// pinMode (9, OUTPUT) ;
 	// digitalWrite (9, HIGH) ; 
-/*
-	revolutions = k * speed * time
-	1/2 = 20 * 615/k		--> k = 24600
-        1/2 = 22 * 545/k		--> k = 23980
-	1/2 = 30 * 408/k		--> k = 24480
 	
-*/
-	drv8830_init(&mot0, 0x060);
-	delay(100);
-	drv8830_move(&mot0, 0, 22);
-	delay(554);
-	if ( drv8830_check_fault_condition(&mot0, "post move")  )
-	{
-		drv8830_move(&mot0, 1, 60);
-		delay(40);
-		drv8830_move(&mot0, 0, 60);
-		delay(40);
-		drv8830_move(&mot0, 1, 60);
-		delay(40);
-		drv8830_move(&mot0, 0, 60);
-		delay(40);
-		
-	}
-	/*
-	drv8830_move(&mot0, 0, 40);
-	delay(500);
-	drv8830_move(&mot0, 0, 50);
-	delay(500);
-	drv8830_move(&mot0, 0, 40);
-	delay(500);
-	drv8830_move(&mot0, 0, 30);
-	delay(500);
-	*/
-	//drv8830_idle(&mot0);	
-	//drv8830_ramp(&mot0, 0, 40, 50, 5000);
-	//drv8830_ramp(&mot0, 0, 20, 6, 1000);
-	//drv8830_idle(&mot0);
-	drv8830_break(&mot0);	
-	delay(500);
+	drv8830_init(&mot0, 0x060);	
+	drv8830_rotate(&mot0, 0, 20, 180);
+	
+	delay(200);
 	return 0;
 }
 
