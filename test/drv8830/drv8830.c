@@ -33,6 +33,7 @@
 		raspi-config
 	detect any i2c devices:
 		gpio i2cdetect
+		--> should detect 0x60 and 0x65
 	
 */
 
