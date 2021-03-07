@@ -148,6 +148,59 @@ void drv8830_break(drv8830_t *drv8830)
 /*
 
 	Prototype:
+		int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int time)
+	Description:
+		Rotate with speed by time
+	Args:
+		drv8830: pointer to the drv8830 struct
+		dir: 0 or 1
+		speed: value between 0x06 and 0x3f. Minium speed seems to be 0x0f
+		time: time in milliseconds
+*/
+int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int time)
+{
+	//int min_time = 350;
+	int min_time = 100;
+	
+	if ( speed < 15 )
+	{
+		printf("speed too small: increase speed! time=%d, speed=%d\n", time, speed);
+		return 0;
+	}		
+	
+	if ( time < min_time )
+	{
+		printf("time too small: reduce speed! time=%d, speed=%d\n", time, speed);
+		return 0;
+	}
+	
+	printf("time=%d, speed=%d\n", time, speed);
+	for(;;)
+	{
+		drv8830_move(&mot0, dir, speed);
+		delay(min_time);
+		if ( drv8830_check_fault_condition(&mot0, "post move")  )
+		{
+			drv8830_move(&mot0, 1-dir, 60);
+			delay(30);
+		}
+		else
+		{
+			if ( time > min_time )
+			{
+				delay(time-min_time);
+			}
+			break;
+		}
+	}
+	drv8830_break(&mot0);	
+	return 1;
+}
+
+
+/*
+
+	Prototype:
 		int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 	Description:
 		Rotate by a specific amount of degree
@@ -157,9 +210,11 @@ void drv8830_break(drv8830_t *drv8830)
 		speed: value between 0x06 and 0x3f. Minium speed seems to be 0x0f
 		degree: angular value in degree, one full rotation: 360
 */
-int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
+int drv8830_rotate2(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 {
 	/*
+		yellow dc motor
+	
 		The k factor is derived by several experiments.
 		It is optimized for speed=20.
 		k should be higher for speed < 20 and should be smaller for speed > 20;
@@ -168,6 +223,8 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 		speed=34 --> k=69
 	        slope = -28/(50-15) = -28/35
 	
+	*/
+	/*
 		Do a little bit of k factor compensation so that the degree value
 		is more or less ok between speed 15 and 30
 		Looks like this value also depends on the engine temperature.
@@ -175,6 +232,7 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 	
 	int k = 84 - ((speed-15)*28)/35;
 	//int k = 84;
+	//int min_time = 350;
 	int min_time = 350;
 	int time = degree*k/speed;
 	
@@ -197,12 +255,13 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 		delay(min_time);
 		if ( drv8830_check_fault_condition(&mot0, "post move")  )
 		{
+			/* fault detected */
 			drv8830_move(&mot0, 1-dir, 60);
 			delay(30);
 		}
 		else
 		{
-			delay(time-350);
+			delay(time-min_time);
 			break;
 		}
 	}
@@ -212,13 +271,25 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 
 int main(int argc, char **argv)
 {
+	int i;
 	wiringPiSetup();	// will always return 0
 	
 	// pinMode (9, OUTPUT) ;
 	// digitalWrite (9, HIGH) ; 
 	
 	drv8830_init(&mot0, 0x060);	
-	drv8830_rotate(&mot0, 0, 20, 180);
+	//drv8830_rotate(&mot0, 0, 20, 180);
+
+	for( i = 0; i < 5; i++ )
+	{
+		drv8830_rotate(&mot0, 0, 30, 110);
+		drv8830_rotate(&mot0, 1, 30, 100);
+	}
+	delay(200);
+	
+	drv8830_rotate(&mot0, 0, 15, 530);
+	delay(200);
+	drv8830_rotate(&mot0, 1, 15, 580);
 	
 	delay(200);
 	return 0;
