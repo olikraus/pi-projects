@@ -177,11 +177,11 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int time)
 	printf("time=%d, speed=%d\n", time, speed);
 	for(;;)
 	{
-		drv8830_move(&mot0, dir, speed);
+		drv8830_move(drv8830, dir, speed);
 		delay(min_time);
-		if ( drv8830_check_fault_condition(&mot0, "post move")  )
+		if ( drv8830_check_fault_condition(drv8830, "post move")  )
 		{
-			drv8830_move(&mot0, 1-dir, 60);
+			drv8830_move(drv8830, 1-dir, 60);
 			delay(30);
 		}
 		else
@@ -193,7 +193,7 @@ int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int time)
 			break;
 		}
 	}
-	drv8830_break(&mot0);	
+	drv8830_break(drv8830);	
 	return 1;
 }
 
@@ -251,12 +251,12 @@ int drv8830_rotate2(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 	printf("time=%d, speed=%d, degree=%d, k=%d\n", time, speed, degree, k);
 	for(;;)
 	{
-		drv8830_move(&mot0, dir, speed);
+		drv8830_move(drv8830, dir, speed);
 		delay(min_time);
-		if ( drv8830_check_fault_condition(&mot0, "post move")  )
+		if ( drv8830_check_fault_condition(drv8830, "post move")  )
 		{
 			/* fault detected */
-			drv8830_move(&mot0, 1-dir, 60);
+			drv8830_move(drv8830, 1-dir, 60);
 			delay(30);
 		}
 		else
@@ -265,7 +265,7 @@ int drv8830_rotate2(drv8830_t *drv8830, uint8_t dir, int speed, int degree)
 			break;
 		}
 	}
-	drv8830_break(&mot0);	
+	drv8830_break(drv8830);	
 	return 1;
 }
 
@@ -278,20 +278,28 @@ int main(int argc, char **argv)
 	// digitalWrite (9, HIGH) ; 
 	
 	drv8830_init(&mot0, 0x060);	
-	//drv8830_rotate(&mot0, 0, 20, 180);
+	drv8830_init(&mot1, 0x065);	
 
 	for( i = 0; i < 5; i++ )
 	{
-		drv8830_rotate(&mot0, 0, 30, 110);
-		drv8830_rotate(&mot0, 1, 30, 100);
+		drv8830_rotate(&mot0, 0, 30, 130);
+		drv8830_rotate(&mot0, 1, 30, 120);
 	}
 	delay(200);
 	
-	drv8830_rotate(&mot0, 0, 15, 530);
+	drv8830_rotate(&mot0, 0, 30, 100);
+	drv8830_rotate(&mot0, 0, 40, 100);
+	drv8830_rotate(&mot0, 0, 55, 200);
 	delay(200);
-	drv8830_rotate(&mot0, 1, 15, 580);
+	drv8830_rotate(&mot0, 1, 30, 500);
+	drv8830_rotate(&mot0, 0, 30, 100);
+	drv8830_rotate(&mot0, 1, 30, 300);
+	drv8830_rotate(&mot0, 0, 30, 100);
+	drv8830_rotate(&mot0, 1, 30, 300);
+	delay(200);
 	
-	delay(200);
+	drv8830_rotate(&mot1, 1, 30, 580);	
+	
 	return 0;
 }
 
