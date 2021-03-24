@@ -288,7 +288,7 @@ int main(int argc, char **argv)
 	delay(200);
 	
 	drv8830_rotate(&mot0, 0, 30, 100);
-	drv8830_rotate(&mot0, 0, 40, 100);
+	drv8830_rotate(&mot0, 0, 40, 190);  // 100 + number of cards
 	drv8830_rotate(&mot0, 0, 55, 200);
 	delay(200);
 	drv8830_rotate(&mot0, 1, 30, 500);
