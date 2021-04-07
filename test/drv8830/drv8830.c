@@ -160,7 +160,7 @@ void drv8830_break(drv8830_t *drv8830)
 int drv8830_rotate(drv8830_t *drv8830, uint8_t dir, int speed, int time)
 {
 	//int min_time = 350;
-	int min_time = 100;
+	int min_time = 50;
 	
 	if ( speed < 15 )
 	{
@@ -279,26 +279,39 @@ int main(int argc, char **argv)
 	
 	drv8830_init(&mot0, 0x060);	
 	drv8830_init(&mot1, 0x065);	
+	
+	drv8830_rotate(&mot1, 1, 30, 580);	
+
+	
 
 	for( i = 0; i < 5; i++ )
 	{
-		drv8830_rotate(&mot0, 0, 30, 130);
-		drv8830_rotate(&mot0, 1, 30, 120);
+		drv8830_rotate(&mot0, 0, 30, 70);
+		drv8830_rotate(&mot0, 1, 30, 70);
+	}
+
+	for( i = 0; i < 25; i++ )
+	{
+		//drv8830_rotate(&mot0, 0, 50, 135);
+		//drv8830_rotate(&mot0, 1, 50, 120);
+		drv8830_rotate(&mot0, 0, 50, 85);
+		drv8830_rotate(&mot0, 1, 50, 70);
 	}
 	delay(200);
 	
-	drv8830_rotate(&mot0, 0, 30, 100);
-	drv8830_rotate(&mot0, 0, 40, 190);  // 100 + number of cards
-	drv8830_rotate(&mot0, 0, 55, 200);
+	//drv8830_rotate(&mot0, 0, 30, 100);
+	drv8830_rotate(&mot0, 0, 55, 330);  // 100 + number of cards, neue karten benötigen auch länger
+	//drv8830_rotate(&mot0, 0, 55, 130);
 	delay(200);
 	drv8830_rotate(&mot0, 1, 30, 500);
-	drv8830_rotate(&mot0, 0, 30, 100);
-	drv8830_rotate(&mot0, 1, 30, 300);
-	drv8830_rotate(&mot0, 0, 30, 100);
-	drv8830_rotate(&mot0, 1, 30, 300);
+	for( i = 0; i < 5; i++ )
+	{
+		drv8830_rotate(&mot0, 0, 30, 100);
+		drv8830_rotate(&mot0, 1, 30, 300);
+	}
 	delay(200);
 	
-	drv8830_rotate(&mot1, 1, 30, 580);	
+	//drv8830_rotate(&mot1, 1, 30, 580);	
 	
 	return 0;
 }
