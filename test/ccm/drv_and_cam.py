@@ -4,6 +4,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 import numpy as np
 import cv2
+import os
 
 import smbus
 import time
@@ -141,6 +142,12 @@ def remove_barrel_distortion(img):
 	dst = cv2.undistort(src,cam,distCoeff)
 	return dst
 
+def read_file(filename):
+	f = open(filename)
+	s = f.read()
+	f.close()
+	return s
+
 def cam_capture(cam, imagename):
 	rawCapture = PiRGBArray(cam)
 	#camera.capture('image.jpg')
@@ -160,8 +167,8 @@ def cam_capture(cam, imagename):
 	img = cv2.erode(img, kernel, iterations=1)	
 	img = cv2.adaptiveThreshold(cv2.medianBlur(img, 3), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
 	
-	cv2.imwrite('image_'+str(i)+'.jpg', image);
-	cv2.imwrite('image_g_'+str(i)+'.jpg', img);
+	cv2.imwrite('raw_'+imagename, image);
+	cv2.imwrite(imagename, img);
 	#cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
 	# tesseract --dpi 500 --psm 6 image_g_XX.jpg stdout
 
@@ -181,12 +188,15 @@ camera.resolution = (1024,1280)
 #camera.resolution = (480,640)
 
 
-for i in range(10):
+for i in range(30):
 	card_eject()
 	time.sleep(0.4)
 
-	cam_capture(camera, 'image_'+str(i)+'.jpg')
-
+	t = time.time()
+	cam_capture(camera, 'image_' + str(t) +'.jpg')
+	#os.system('tesseract --dpi 500 --psm 6 image.jpg out txt')  # write to out.txt
+	#t = read_file('out.txt')
+	#print(t)
 	card_sort()
 
 #light.off();
