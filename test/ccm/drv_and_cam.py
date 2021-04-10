@@ -21,6 +21,8 @@ import time
 # around one second is required to reach full speed (from 0 to 63)
 
 
+card_dic = read_json('mtg_card_dic.json')
+card_prop = read_json('mtg_card_prop_full.json')
 
 eject_adr = 0x65
 sorter_adr = 0x60
@@ -148,6 +150,11 @@ def read_file(filename):
 	f.close()
 	return s
 
+def append_to_file(filename, s):
+	f = open(filename, "a")
+	f.write(s)
+	f.close()
+
 def cam_capture(cam, imagename):
 	rawCapture = PiRGBArray(cam)
 	#camera.capture('image.jpg')
@@ -172,6 +179,68 @@ def cam_capture(cam, imagename):
 	#cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
 	# tesseract --dpi 500 --psm 6 image_g_XX.jpg stdout
 
+# return the result from tesseract
+def get_ocr_card_name(imagefile):
+  # execute tesseract
+  os.system("tesseract --dpi 500 --psm 6 " + imagefile +" out txt")  # write to out.txt
+
+  # character based updates
+  ocr_result = read_file('out.txt')
+  ocr_result = ocr_result.replace(chr(8212), "")          # big dash, created by tesseract
+  ocr_result = ocr_result.replace("_", " ")          # replace underscore with blank
+  ocr_result = ocr_result.replace("~", "")          # remove tilde
+  ocr_result = ocr_result.replace(".", " ")          # replace  dot with blank
+  ocr_result = ocr_result.replace("@", "")          # remove @
+  
+  # find the line which contains the card name with highest probability
+  ocr_lines = ocr_result.split("\n")      # split into lines
+  ocr_lines = list(map(lambda s: s.split(" "), ocr_lines))        # split lines into words
+  ocr_lines = list(map(lambda l : list(filter(lambda s: len(s) > 2, l)), ocr_lines  )) # remove words with 1 or 2 chars
+  ocr_lines = list(filter(lambda l : len(l) > 0, ocr_lines))       # remove lines which are now empty
+  ocr_hist = list(map(lambda l : list(map(lambda s: len(s), l)), ocr_lines))  # replace all strings by their string length
+  ocr_hist = list(map(lambda l : avg(l), ocr_hist))       # calculate the average word size
+  line_index = ocr_hist.index(max(ocr_hist))                  # get the line index with the highest average word size
+  ocr_name = " ".join(ocr_lines[line_index])
+  
+  # log some data to the log file
+  append_to_file("drv_and_cam.log", str(ocr_lines)+"\n")
+  append_to_file("drv_and_cam.log", str(ocr_hist)+": "+ ocr_name + "\n")
+  return ocr_name
+  
+# return a vector with the internal card id, the card name and the distance to the tesseract name
+def find_card(carddic, ocr_name):
+  t = { 
+  8209: 45, 8211:45, # convert dash
+  48: 111, 79: 111, # convert zero and uppercase O to small o
+  211: 111, 212: 111, 214: 111, # other chars similar to o
+  242: 111, 243: 111, 244: 111, 245: 111, 246: 111, # other chars similar to o
+  959:111, 1086:111, 8009:111, 1054:111,    # other chars similar to o
+  73:105, 74:105, 106:105, 108:105, 124:105, # convert upper i, upper j, small j, small l and pipe symbol to small i
+  161:105, 205:105, 206:105, 236:105, 237:105, 238:105, 239:105, 1575:105,  # convert other chars to i
+  192: 65, 193: 65, 194: 65, 196: 65, 1040:65, 1044:65,         # upper A
+  200: 69, 201: 69, 202: 69, 1045:69,   # upper E
+  85:117,  # convert upper U to small u
+  218: 117, 220: 117,  # other conversions to small u
+  249: 117, 250: 117, 251: 117, 252: 117, # other conversions to small u
+  956: 117, 1094: 117,
+  224: 97, 225: 97, 226: 97, 227: 97, 228: 97, 229: 97, # small a conversion
+  232: 101, 233: 101, 234: 101, 235: 101 # small e conversion
+  }
+
+  d = 999
+  dmin = 999
+  smin = ""
+  n = ocr_name.translate(t)
+  for c in carddic:
+    d = jellyfish.levenshtein_distance(c.translate(t), n)
+    if dmin > d:
+      dmin = d
+      smin = c
+      # print(c.translate(t) + "/"+ ocr_name.translate(t))
+      
+  append_to_file("drv_and_cam.log", "--> "+ c+ "(" + str(carddic[smin]) + ")\n")
+  return [carddic[smin], smin, dmin]
+
 
 camera = PiCamera()
 
@@ -189,15 +258,14 @@ camera.resolution = (1024,1280)
 
 
 for i in range(30):
-	card_eject()
-	time.sleep(0.4)
+  card_eject()
+  time.sleep(0.4)
 
-	t = time.time()
-	cam_capture(camera, 'image_' + str(t) +'.jpg')
-	#os.system('tesseract --dpi 500 --psm 6 image.jpg out txt')  # write to out.txt
-	#t = read_file('out.txt')
-	#print(t)
-	card_sort()
+  t = time.time()
+  cam_capture(camera, 'image.jpg')
+  ocr_name = get_ocr_card_name('image.jpg')
+  find_card(card_dic, ocr_name)
+  card_sort()
 
 #light.off();
 camera.stop_preview()
