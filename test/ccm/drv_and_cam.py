@@ -155,7 +155,7 @@ def cam_capture(cam, imagename):
 	#image = remove_barrel_distortion(white_balance(rawCapture.array))
 	image = remove_barrel_distortion(rawCapture.array)
 	#image = rawCapture.array;
-	image = image[0:150, 0:1279]
+	image = image[0:135, 0:1279]
 	#image2 = image[0:100, 0:639]
 
 	# https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
