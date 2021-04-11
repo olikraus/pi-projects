@@ -5,10 +5,14 @@ from picamera.array import PiRGBArray
 import numpy as np
 import cv2
 import os
+import io
+import json
+import jellyfish
 
 import smbus
 import time
 
+pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 # DRV8830
 #	Register 0: 	vvvvvvbb
@@ -20,9 +24,6 @@ import time
 #	bb = 11		break
 # around one second is required to reach full speed (from 0 to 63)
 
-
-card_dic = read_json('mtg_card_dic.json')
-card_prop = read_json('mtg_card_prop_full.json')
 
 eject_adr = 0x65
 sorter_adr = 0x60
@@ -155,6 +156,12 @@ def append_to_file(filename, s):
 	f.write(s)
 	f.close()
 
+def read_json(filename):
+  f = io.open(filename, "r", encoding=None)
+  obj = json.load(f)
+  f.close()
+  return obj
+
 def cam_capture(cam, imagename):
 	rawCapture = PiRGBArray(cam)
 	#camera.capture('image.jpg')
@@ -178,6 +185,9 @@ def cam_capture(cam, imagename):
 	cv2.imwrite(imagename, img);
 	#cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
 	# tesseract --dpi 500 --psm 6 image_g_XX.jpg stdout
+
+def avg(list):
+    return sum(list) / len(list)
 
 # return the result from tesseract
 def get_ocr_card_name(imagefile):
@@ -232,14 +242,20 @@ def find_card(carddic, ocr_name):
   smin = ""
   n = ocr_name.translate(t)
   for c in carddic:
-    d = jellyfish.levenshtein_distance(c.translate(t), n)
+    #d = jellyfish.levenshtein_distance(c.translate(t), n)
+    d = jellyfish.levenshtein_distance(c, ocr_name)
     if dmin > d:
       dmin = d
       smin = c
-      # print(c.translate(t) + "/"+ ocr_name.translate(t))
+      print(c + "/"+ ocr_name+" "+str(d))
+      #print(c.translate(t) + "/"+ ocr_name.translate(t))
       
-  append_to_file("drv_and_cam.log", "--> "+ c+ "(" + str(carddic[smin]) + ")\n")
+  append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
   return [carddic[smin], smin, dmin]
+
+
+card_dic = read_json('mtg_card_dic.json')
+card_prop = read_json('mtg_card_prop_full.json')
 
 
 camera = PiCamera()
@@ -257,15 +273,18 @@ camera.resolution = (1024,1280)
 #camera.resolution = (480,640)
 
 
-for i in range(30):
+for i in range(1):
   card_eject()
   time.sleep(0.4)
 
   t = time.time()
   cam_capture(camera, 'image.jpg')
+  t_cam = time.time()
   ocr_name = get_ocr_card_name('image.jpg')
+  t_ocr = time.time()
   find_card(card_dic, ocr_name)
+  t_find = time.time()
   card_sort()
-
+  append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
 #light.off();
 camera.stop_preview()
