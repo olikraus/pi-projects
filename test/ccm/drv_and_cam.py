@@ -13,7 +13,7 @@ import smbus
 import time
 import argparse
 
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+#pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 # DRV8830
 #	Register 0: 	vvvvvvbb
@@ -255,37 +255,47 @@ def find_card(carddic, ocr_name):
   return [carddic[smin], smin, dmin]
 
 
-card_dic = read_json('mtg_card_dic.json')
-card_prop = read_json('mtg_card_prop_full.json')
+def sort_machine():
+  card_dic = read_json('mtg_card_dic.json')
+  card_prop = read_json('mtg_card_prop_full.json')
 
 
-camera = PiCamera()
+  camera = PiCamera()
 
-# camera.flash_mode = 'on'
-camera.start_preview()
-camera.exposure_mode = 'night'
-# camera.exposure_compensation = 0
-camera.brightness = 60	# default: 50
-camera.contrast = 100     # default: 0
-#camera.rotation = 0
-#camera.resolution = (1280, 1024)
-camera.rotation = 90
-camera.resolution = (1024,1280)
-#camera.resolution = (480,640)
+  # camera.flash_mode = 'on'
+  camera.start_preview()
+  camera.exposure_mode = 'night'
+  # camera.exposure_compensation = 0
+  camera.brightness = 60	# default: 50
+  camera.contrast = 100     # default: 0
+  #camera.rotation = 0
+  #camera.resolution = (1280, 1024)
+  camera.rotation = 90
+  camera.resolution = (1024,1280)
+  #camera.resolution = (480,640)
 
 
-for i in range(1):
-  card_eject()
-  time.sleep(0.4)
+  for i in range(1):
+    card_eject()
+    time.sleep(0.4)
 
-  t = time.time()
-  cam_capture(camera, 'image.jpg')
-  t_cam = time.time()
-  ocr_name = get_ocr_card_name('image.jpg')
-  t_ocr = time.time()
-  find_card(card_dic, ocr_name)
-  t_find = time.time()
-  card_sort()
-  append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
-#light.off();
-camera.stop_preview()
+    t = time.time()
+    cam_capture(camera, 'image.jpg')
+    t_cam = time.time()
+    ocr_name = get_ocr_card_name('image.jpg')
+    t_ocr = time.time()
+    find_card(card_dic, ocr_name)
+    t_find = time.time()
+    card_sort()
+    append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
+  #light.off();
+  camera.stop_preview()
+
+# parser = argparse.ArgumentParser(description='Card Sorter Machine Controller')
+# parser.add_argument('eject')
+# parser.add_argument('sort')
+#parser.print_help()
+# args = parser.parse_args()
+# print(args)
+
+sort_machine()
