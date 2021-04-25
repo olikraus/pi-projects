@@ -11,6 +11,7 @@ import jellyfish
 
 import smbus
 import time
+import argparse
 
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
