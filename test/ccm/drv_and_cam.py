@@ -88,7 +88,7 @@ def card_eject():
 	time.sleep(0.1)
 
 def card_sort():
-	motor_run(sorter_adr, 30, 1)
+	motor_run(sorter_adr, 60, 1)
 	time.sleep(1)
 	motor_coast(sorter_adr)
 	time.sleep(0.1)
@@ -291,11 +291,32 @@ def sort_machine():
   #light.off();
   camera.stop_preview()
 
-# parser = argparse.ArgumentParser(description='Card Sorter Machine Controller')
+parser = argparse.ArgumentParser(description='Card Sorter Machine Controller',
+  formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument('-c',
+                    default='all',
+                    const='all',
+                    nargs='?',
+                    choices=['eject', 'sort', 'all'],
+                    help='''Define command to execute (default: %(default)s)
+    eject: Eject a card into sorter
+    sort: Move a cart from the sorter into a basket
+''')
 # parser.add_argument('eject')
 # parser.add_argument('sort')
 #parser.print_help()
 # args = parser.parse_args()
 # print(args)
 
-sort_machine()
+#sort_machine()
+
+args = parser.parse_args()
+print(args)
+if args.c == '':
+  print('-c <empty>')
+elif args.c == 'all':
+  print('-c all')
+elif args.c == 'eject':
+  card_eject();
+  card_sort();
+
