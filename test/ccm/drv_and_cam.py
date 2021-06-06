@@ -87,11 +87,21 @@ def card_eject():
 	motor_coast(eject_adr)
 	time.sleep(0.1)
 
-def card_sort():
-	motor_run(sorter_adr, 60, 1)
-	time.sleep(1)
-	motor_coast(sorter_adr)
-	time.sleep(0.1)
+def card_sort(basket):
+  if (basket & 2) == 0:
+    motor_run(sorter_adr, 20, 1)
+    time.sleep(1)
+  else:
+    #motor_run(sorter_adr, 30, 1)
+    #time.sleep(0.15)
+    #motor_run(sorter_adr, 40, 1)
+    #time.sleep(0.15)
+    #motor_run(sorter_adr, 50, 1)
+    #time.sleep(0.15)
+    motor_run(sorter_adr, 60, 1)
+    time.sleep(1)          
+  motor_coast(sorter_adr)
+  time.sleep(0.1)
 
 # https://stackoverflow.com/questions/46390779/automatic-white-balancing-with-grayworld-assumption
 
@@ -286,7 +296,7 @@ def sort_machine():
     t_ocr = time.time()
     find_card(card_dic, ocr_name)
     t_find = time.time()
-    card_sort()
+    card_sort(0)
     append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
   #light.off();
   camera.stop_preview()
@@ -302,6 +312,21 @@ parser.add_argument('-c',
     eject: Eject a card into sorter
     sort: Move a cart from the sorter into a basket
 ''')
+parser.add_argument('-b', 
+  action='store',
+  nargs='?', 
+  default=0,
+  const=0,
+  type=int,
+  help='target basket number')
+parser.add_argument('-r', 
+  action='store',
+  nargs='?', 
+  default=1,
+  const=1,
+  type=int,
+  help='repeat count')
+
 # parser.add_argument('eject')
 # parser.add_argument('sort')
 #parser.print_help()
@@ -317,6 +342,7 @@ if args.c == '':
 elif args.c == 'all':
   print('-c all')
 elif args.c == 'eject':
-  card_eject();
-  card_sort();
+  for i in range(args.r):
+    card_eject();
+    card_sort(args.b);
 
