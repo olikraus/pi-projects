@@ -74,12 +74,12 @@ def card_eject():
 
 	# in parallel shake card in the sorter and pull back the second lowest card
 	for i in range(10):
-		motor_run(sorter_adr, 30, 0)
-		time.sleep(0.04)
+		motor_run(sorter_adr, 18, 0)
+		time.sleep(0.03)
 		motor_break(sorter_adr)
 		time.sleep(0.01)
-		motor_run(sorter_adr, 30, 1)
-		time.sleep(0.04)
+		motor_run(sorter_adr, 18, 1)
+		time.sleep(0.03)
 		motor_break(sorter_adr)
 		time.sleep(0.01)
 	
@@ -89,7 +89,7 @@ def card_eject():
 
 def card_sort(basket):
   if (basket & 2) == 0:
-    motor_run(sorter_adr, 20, 1)
+    motor_run(sorter_adr, 16, 1)
     time.sleep(1)
   else:
     #motor_run(sorter_adr, 30, 1)
