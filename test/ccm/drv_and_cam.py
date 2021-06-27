@@ -59,38 +59,40 @@ def motor_shake(cnt, d1, d2):
 
 def card_eject():
 	# try to separate lowest card
-	motor_shake(3, 0.04, 0.03)
+	motor_shake(5, 0.04, 0.03)
 	motor_shake(20, 0.05, 0.04)
 
 	# throw out lowest card
 	motor_run(eject_adr, 30, 0)
-	time.sleep(0.35)
+	time.sleep(0.30)
 	motor_coast(eject_adr)
 	time.sleep(0.1)
 
 
 	# pull back second lowest card
-	motor_run(eject_adr, 30, 1)
+	motor_run(eject_adr, 25, 1)
 
 	# in parallel shake card in the sorter and pull back the second lowest card
-	for i in range(10):
-		motor_run(sorter_adr, 18, 0)
-		time.sleep(0.03)
+	for i in range(6):
+		motor_run(sorter_adr, 15, 0)
+		time.sleep(0.025)
 		motor_break(sorter_adr)
 		time.sleep(0.01)
-		motor_run(sorter_adr, 18, 1)
-		time.sleep(0.03)
+		motor_run(sorter_adr, 15, 1)
+		time.sleep(0.025)
 		motor_break(sorter_adr)
 		time.sleep(0.01)
 	
+        # continue with pullback
+	time.sleep(1)
 	# stop pullback
 	motor_coast(eject_adr)
 	time.sleep(0.1)
 
 def card_sort(basket):
   if (basket & 2) == 0:
-    motor_run(sorter_adr, 16, 1)
-    time.sleep(1)
+    motor_run(sorter_adr, 21, 1)
+    time.sleep(1.2)
   else:
     #motor_run(sorter_adr, 30, 1)
     #time.sleep(0.15)
@@ -98,8 +100,8 @@ def card_sort(basket):
     #time.sleep(0.15)
     #motor_run(sorter_adr, 50, 1)
     #time.sleep(0.15)
-    motor_run(sorter_adr, 60, 1)
-    time.sleep(1)          
+    motor_run(sorter_adr, 63, 1)
+    time.sleep(1.2)
   motor_coast(sorter_adr)
   time.sleep(0.1)
 
