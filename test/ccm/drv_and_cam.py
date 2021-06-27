@@ -29,6 +29,12 @@ import argparse
 eject_adr = 0x65
 sorter_adr = 0x60
 
+b0cond = "true";
+b1cond = "true";
+b2cond = "true";
+# b0cond = "true";
+
+
 def motor_coast(adr):
 	bus = smbus.SMBus(1)
 	bus.write_byte_data(adr, 1, 0x80)	# clear any faults
@@ -251,8 +257,8 @@ def find_card(carddic, ocr_name):
   }
 
   d = 999
-  dmin = 999
-  smin = ""
+  dmin = 999   # minimal distance for smin
+  smin = ""     # the best matching card name (with minimal distance)
   n = ocr_name.translate(t)
   for c in carddic:
     #d = jellyfish.levenshtein_distance(c.translate(t), n)
@@ -264,8 +270,28 @@ def find_card(carddic, ocr_name):
       #print(c.translate(t) + "/"+ ocr_name.translate(t))
       
   append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
-  return [carddic[smin], smin, dmin]
+  # [carddic[smin], smin, dmin]
+  # return the internal card index into the property array
+  return carddic[smin]
 
+def get_sort_basket(cardprop, card_idx)
+  basket = 3;
+  r = cardprop[card_idx]["r"];          # rarity, 0="Common", 1="Uncommon", 2="Rare", 3="Mythic"
+  tc = cardprop[card_idx]["tc"];        # is Creature?
+  ts = cardprop[card_idx]["ts"];        # is Sorcery?
+  ti = cardprop[card_idx]["ti"];        # is Instant?
+  ta = cardprop[card_idx]["ta"];        # is Artefact?
+  tl = cardprop[card_idx]["tl"];        # is Land?
+  te = cardprop[card_idx]["te"];        # is Enhancement?
+  tp = cardprop[card_idx]["te"];        # is Planeswalker?
+  m = cardprop[card_idx]["m"];        # cmc 
+  if eval(b0cond):
+    basket = 0
+  elif eval(b1cond):
+    basket = 1
+  elif eval(b2cond):
+    basket = 2
+  return basket;
 
 def sort_machine():
   card_dic = read_json('mtg_card_dic.json')
@@ -296,8 +322,10 @@ def sort_machine():
     t_cam = time.time()
     ocr_name = get_ocr_card_name('image.jpg')
     t_ocr = time.time()
-    find_card(card_dic, ocr_name)
+    card_idx = find_card(card_dic, ocr_name)
     t_find = time.time()
+    basket = get_sort_basket(card_prop, card_idx)
+    
     card_sort(0)
     append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
   #light.off();
@@ -328,6 +356,27 @@ parser.add_argument('-r',
   const=1,
   type=int,
   help='repeat count')
+parser.add_argument('-b0c', 
+  action='store',
+  nargs='?', 
+  default='true',
+  const=1,
+  type=string,
+  help='sort condition for basket 0')
+parser.add_argument('-b1c', 
+  action='store',
+  nargs='?', 
+  default='true',
+  const=1,
+  type=string,
+  help='sort condition for basket 0')
+parser.add_argument('-b2c', 
+  action='store',
+  nargs='?', 
+  default='true',
+  const=1,
+  type=string,
+  help='sort condition for basket 0')
 
 # parser.add_argument('eject')
 # parser.add_argument('sort')
@@ -339,6 +388,10 @@ parser.add_argument('-r',
 
 args = parser.parse_args()
 print(args)
+b0cod = args.b0c
+b1cod = args.b1c
+b2cod = args.b2c
+
 if args.c == '':
   print('-c <empty>')
 elif args.c == 'all':

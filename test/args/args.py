@@ -18,7 +18,18 @@ parser.add_argument('-n',
   const=1,
   type=int,
   help='repeat count')
+parser.add_argument('-x', 
+  action='store',
+  nargs='?', 
+  default=1,
+  const=1,
+  type=int,
+  help='xyz')
 parser.print_help()
 args = parser.parse_args()
 print(args)
 print(args.n)
+print(type(args.c))
+print(args.c)
+print(args.n)
+print(args.x)
