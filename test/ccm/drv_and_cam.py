@@ -2,6 +2,7 @@
 
 from picamera import PiCamera
 from picamera.array import PiRGBArray
+from datetime import datetime
 import numpy as np
 import cv2
 import os
@@ -13,7 +14,26 @@ import smbus
 import time
 import argparse
 
-#pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+
+
+
+
+eject_motor_adr = 0x65
+sorter_motor_adr = 0x60
+
+eject_motor_shake_speed = 40     # 0..63
+
+sorter_motor_basket_0_1_speed = 14      # 0..63
+sorter_motor_basket_0_1_time = 2.1      # time in seconds
+
+sorter_motor_basket_2_3_speed = 63      # 0..63
+sorter_motor_basket_2_3_time = 0.8      # time in seconds
+
+jpeg_full_image_quality=10      # 0..100
+
+
+parser = argparse.ArgumentParser(description='Card Sorter Machine Controller', formatter_class=argparse.RawTextHelpFormatter)
+
 
 # DRV8830
 #	Register 0: 	vvvvvvbb
@@ -24,17 +44,6 @@ import argparse
 #	bb = 10		forward
 #	bb = 11		break
 # around one second is required to reach full speed (from 0 to 63)
-
-
-eject_adr = 0x65
-sorter_adr = 0x60
-
-eject_motor_shake_speed = 40     # 0..63
-sorter_motor_basket_0_1_speed = 14      # 0..63
-sorter_motor_basket_0_1_time = 2.1      # time in seconds
-
-sorter_motor_basket_2_3_speed = 63      # 0..63
-sorter_motor_basket_2_3_time = 0.8      # time in seconds
 
 def motor_coast(adr):
 	bus = smbus.SMBus(1)
@@ -58,55 +67,65 @@ def motor_run(adr,speed,dir):
 # d2: backward drive duration
 def eject_motor_shake(cnt, d1, d2):
 	for i in range(cnt):
-		motor_run(eject_adr, eject_motor_shake_speed, 0)
+		motor_run(eject_motor_adr, eject_motor_shake_speed, 0)
 		time.sleep(d1)
-		motor_break(eject_adr)
+		motor_break(eject_motor_adr)
 		time.sleep(0.01)
-		motor_run(eject_adr, eject_motor_shake_speed, 1)
+		motor_run(eject_motor_adr, eject_motor_shake_speed, 1)
 		time.sleep(d2)
-		motor_break(eject_adr)
+		motor_break(eject_motor_adr)
 		time.sleep(0.01)
 
+def clean_str(s):
+  t = ''
+  for c in s:
+    if c >= 'A' and c <=  'Z':
+      t += c
+    elif c >= 'a' and c <= 'z':
+      t+= c
+    else:
+      t+='_'
+  return t
+  
 def card_eject():
 	# try to separate lowest card
 	eject_motor_shake(5, 0.04, 0.03)
 	eject_motor_shake(20, 0.05, 0.04)
 
 	# throw out lowest card
-	motor_run(eject_adr, 30, 0)
+	motor_run(eject_motor_adr, 30, 0)
 	time.sleep(0.30)
-	motor_coast(eject_adr)
+	motor_coast(eject_motor_adr)
 	time.sleep(0.1)
 
-
 	# pull back second lowest card
-	motor_run(eject_adr, 25, 1)
+	motor_run(eject_motor_adr, 25, 1)
 
 	# in parallel shake card in the sorter and pull back the second lowest card
 	for i in range(6):
-		motor_run(sorter_adr, 15, 0)
+		motor_run(sorter_motor_adr, 15, 0)
 		time.sleep(0.025)
-		motor_break(sorter_adr)
+		motor_break(sorter_motor_adr)
 		time.sleep(0.01)
-		motor_run(sorter_adr, 15, 1)
+		motor_run(sorter_motor_adr, 15, 1)
 		time.sleep(0.025)
-		motor_break(sorter_adr)
+		motor_break(sorter_motor_adr)
 		time.sleep(0.01)
 	
         # continue with pullback
 	time.sleep(1)
 	# stop pullback
-	motor_coast(eject_adr)
+	motor_coast(eject_motor_adr)
 	time.sleep(0.1)
 
 def card_sort(basket):
   if (basket & 2) == 0:
-    motor_run(sorter_adr, sorter_motor_basket_0_1_speed, 1)
+    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
     time.sleep(sorter_motor_basket_0_1_time)
   else:
-    motor_run(sorter_adr, sorter_motor_basket_2_3_speed, 1)
+    motor_run(sorter_motor_adr, sorter_motor_basket_2_3_speed, 1)
     time.sleep(sorter_motor_basket_2_3_time)
-  motor_coast(sorter_adr)
+  motor_coast(sorter_motor_adr)
   time.sleep(0.1)
 
 # https://stackoverflow.com/questions/46390779/automatic-white-balancing-with-grayworld-assumption
@@ -139,7 +158,6 @@ def remove_barrel_distortion(img):
 
 	distCoeff = np.zeros((4,1),np.float64)
 
-	# TODO: add your coefficients here!
 	k1 = -1.2e-5; # negative to remove barrel distortion
 	k2 = 0.0;
 	p1 = 0.0;
@@ -179,29 +197,30 @@ def read_json(filename):
   f.close()
   return obj
 
-def cam_capture(cam, imagename):
-	rawCapture = PiRGBArray(cam)
-	#camera.capture('image.jpg')
-	cam.capture(rawCapture, format="bgr")
-	#image = remove_barrel_distortion(white_balance(rawCapture.array))
-	image = remove_barrel_distortion(rawCapture.array)
-	#image = rawCapture.array;
-	image = image[0:135, 0:1279]
-	#image2 = image[0:100, 0:639]
+def cam_capture(cam, imagename, fullimname):
+  rawCapture = PiRGBArray(cam)
+  #camera.capture('image.jpg')
+  cam.capture(rawCapture, format="bgr")
+  # remove the barrel distortion of the raspi cam
+  #image = remove_barrel_distortion(white_balance(rawCapture.array))
+  image = remove_barrel_distortion(rawCapture.array)
+  # write a low quality picture of the scanned card
+  cv2.imwrite(fullimname, image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
+  #image = rawCapture.array;
+  image = image[0:135, 0:1279]
+  # https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
+  image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  #(thresh, blackAndWhiteImage) = cv2.threshold(image, 120, 255, cv2.THRESH_BINARY)
 
-	# https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
-	image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	#(thresh, blackAndWhiteImage) = cv2.threshold(image, 120, 255, cv2.THRESH_BINARY)
-
-	kernel = np.ones((3, 3), np.uint8)
-	img = cv2.dilate(image, kernel, iterations=1)
-	img = cv2.erode(img, kernel, iterations=1)	
-	img = cv2.adaptiveThreshold(cv2.medianBlur(img, 3), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
-	
-	cv2.imwrite('raw_'+imagename, image);
-	cv2.imwrite(imagename, img);
-	#cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
-	# tesseract --dpi 500 --psm 6 image_g_XX.jpg stdout
+  kernel = np.ones((3, 3), np.uint8)
+  img = cv2.dilate(image, kernel, iterations=1)
+  img = cv2.erode(img, kernel, iterations=1)	
+  img = cv2.adaptiveThreshold(cv2.medianBlur(img, 3), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 4)
+  
+  cv2.imwrite('raw_'+imagename, image);
+  cv2.imwrite(imagename, img);
+  #cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
+  # tesseract --dpi 500 --psm 6 image_g_XX.jpg stdout
 
 def avg(list):
     return sum(list) / len(list)
@@ -270,7 +289,24 @@ def find_card(carddic, ocr_name):
   append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
   return [carddic[smin], smin, dmin]
 
-
+def eval_cond(cond, prop):
+  tc = prop["tc"]
+  ts = prop["ts"]
+  ti = prop["ti"]
+  ta = prop["ta"]
+  tl = prop["tl"]
+  te = prop["te"]
+  tp = prop["tp"]
+  cmc = prop["c"]
+  r = prop["r"]
+  cw = "W" in prop["i"]
+  cb = "B" in prop["i"]
+  cr = "R" in prop["i"]
+  cg = "G" in prop["i"]
+  cu = "U" in prop["i"]
+  print('cmc='+str(cmc))
+  #return eval(cond);
+  
 def sort_machine():
   card_dic = read_json('mtg_card_dic.json')
   card_prop = read_json('mtg_card_prop_full.json')
@@ -296,19 +332,23 @@ def sort_machine():
     time.sleep(0.4)
 
     t = time.time()
-    cam_capture(camera, 'image.jpg')
+    strdt = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    cam_capture(camera, 'image.jpg', strdt+'.jpg')
     t_cam = time.time()
     ocr_name = get_ocr_card_name('image.jpg')
     t_ocr = time.time()
-    find_card(card_dic, ocr_name)
+    cardv = find_card(card_dic, ocr_name)
     t_find = time.time()
+   
+    os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
+    #print( cardv[1] )
+    #print( clean_str( cardv[1] ))
+    eval_cond('', card_prop[cardv[0]])
     card_sort(0)
     append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
-  #light.off();
+    
   camera.stop_preview()
 
-parser = argparse.ArgumentParser(description='Card Sorter Machine Controller',
-  formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-c',
                     default='all',
                     const='all',
@@ -345,7 +385,7 @@ print(args)
 if args.c == '':
   print('-c <empty>')
 elif args.c == 'all':
-  print('-c all')
+  sort_machine();
 elif args.c == 'em':
   for i in range(args.r):
     card_eject();
