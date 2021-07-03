@@ -29,11 +29,12 @@ import argparse
 eject_adr = 0x65
 sorter_adr = 0x60
 
-b0cond = "true";
-b1cond = "true";
-b2cond = "true";
-# b0cond = "true";
+eject_motor_shake_speed = 40     # 0..63
+sorter_motor_basket_0_1_speed = 14      # 0..63
+sorter_motor_basket_0_1_time = 2.1      # time in seconds
 
+sorter_motor_basket_2_3_speed = 63      # 0..63
+sorter_motor_basket_2_3_time = 0.8      # time in seconds
 
 def motor_coast(adr):
 	bus = smbus.SMBus(1)
@@ -52,21 +53,24 @@ def motor_run(adr,speed,dir):
 	bus.write_byte_data(adr, 1, 0x80)	# clear any faults
 	bus.write_byte_data(adr, 0, speed*4 + 1+dir)	# drive
 	
-def motor_shake(cnt, d1, d2):
+# cnt: number of shakes for the eject motor
+# d1: forward drive duration
+# d2: backward drive duration
+def eject_motor_shake(cnt, d1, d2):
 	for i in range(cnt):
-		motor_run(eject_adr, 30, 0)
+		motor_run(eject_adr, eject_motor_shake_speed, 0)
 		time.sleep(d1)
 		motor_break(eject_adr)
 		time.sleep(0.01)
-		motor_run(eject_adr, 30, 1)
+		motor_run(eject_adr, eject_motor_shake_speed, 1)
 		time.sleep(d2)
 		motor_break(eject_adr)
 		time.sleep(0.01)
 
 def card_eject():
 	# try to separate lowest card
-	motor_shake(5, 0.04, 0.03)
-	motor_shake(20, 0.05, 0.04)
+	eject_motor_shake(5, 0.04, 0.03)
+	eject_motor_shake(20, 0.05, 0.04)
 
 	# throw out lowest card
 	motor_run(eject_adr, 30, 0)
@@ -97,17 +101,11 @@ def card_eject():
 
 def card_sort(basket):
   if (basket & 2) == 0:
-    motor_run(sorter_adr, 21, 1)
-    time.sleep(1.2)
+    motor_run(sorter_adr, sorter_motor_basket_0_1_speed, 1)
+    time.sleep(sorter_motor_basket_0_1_time)
   else:
-    #motor_run(sorter_adr, 30, 1)
-    #time.sleep(0.15)
-    #motor_run(sorter_adr, 40, 1)
-    #time.sleep(0.15)
-    #motor_run(sorter_adr, 50, 1)
-    #time.sleep(0.15)
-    motor_run(sorter_adr, 63, 1)
-    time.sleep(1.2)
+    motor_run(sorter_adr, sorter_motor_basket_2_3_speed, 1)
+    time.sleep(sorter_motor_basket_2_3_time)
   motor_coast(sorter_adr)
   time.sleep(0.1)
 
@@ -257,8 +255,8 @@ def find_card(carddic, ocr_name):
   }
 
   d = 999
-  dmin = 999   # minimal distance for smin
-  smin = ""     # the best matching card name (with minimal distance)
+  dmin = 999
+  smin = ""
   n = ocr_name.translate(t)
   for c in carddic:
     #d = jellyfish.levenshtein_distance(c.translate(t), n)
@@ -270,28 +268,8 @@ def find_card(carddic, ocr_name):
       #print(c.translate(t) + "/"+ ocr_name.translate(t))
       
   append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
-  # [carddic[smin], smin, dmin]
-  # return the internal card index into the property array
-  return carddic[smin]
+  return [carddic[smin], smin, dmin]
 
-def get_sort_basket(cardprop, card_idx)
-  basket = 3;
-  r = cardprop[card_idx]["r"];          # rarity, 0="Common", 1="Uncommon", 2="Rare", 3="Mythic"
-  tc = cardprop[card_idx]["tc"];        # is Creature?
-  ts = cardprop[card_idx]["ts"];        # is Sorcery?
-  ti = cardprop[card_idx]["ti"];        # is Instant?
-  ta = cardprop[card_idx]["ta"];        # is Artefact?
-  tl = cardprop[card_idx]["tl"];        # is Land?
-  te = cardprop[card_idx]["te"];        # is Enhancement?
-  tp = cardprop[card_idx]["te"];        # is Planeswalker?
-  m = cardprop[card_idx]["m"];        # cmc 
-  if eval(b0cond):
-    basket = 0
-  elif eval(b1cond):
-    basket = 1
-  elif eval(b2cond):
-    basket = 2
-  return basket;
 
 def sort_machine():
   card_dic = read_json('mtg_card_dic.json')
@@ -322,10 +300,8 @@ def sort_machine():
     t_cam = time.time()
     ocr_name = get_ocr_card_name('image.jpg')
     t_ocr = time.time()
-    card_idx = find_card(card_dic, ocr_name)
+    find_card(card_dic, ocr_name)
     t_find = time.time()
-    basket = get_sort_basket(card_prop, card_idx)
-    
     card_sort(0)
     append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
   #light.off();
@@ -337,10 +313,9 @@ parser.add_argument('-c',
                     default='all',
                     const='all',
                     nargs='?',
-                    choices=['eject', 'sort', 'all'],
+                    choices=['em', 'sort', 'all'],
                     help='''Define command to execute (default: %(default)s)
-    eject: Eject a card into sorter
-    sort: Move a cart from the sorter into a basket
+    em: Eject a card into sorter and move the card into a basket (uses -b and -r)
 ''')
 parser.add_argument('-b', 
   action='store',
@@ -356,27 +331,6 @@ parser.add_argument('-r',
   const=1,
   type=int,
   help='repeat count')
-parser.add_argument('-b0c', 
-  action='store',
-  nargs='?', 
-  default='true',
-  const=1,
-  type=string,
-  help='sort condition for basket 0')
-parser.add_argument('-b1c', 
-  action='store',
-  nargs='?', 
-  default='true',
-  const=1,
-  type=string,
-  help='sort condition for basket 0')
-parser.add_argument('-b2c', 
-  action='store',
-  nargs='?', 
-  default='true',
-  const=1,
-  type=string,
-  help='sort condition for basket 0')
 
 # parser.add_argument('eject')
 # parser.add_argument('sort')
@@ -388,15 +342,11 @@ parser.add_argument('-b2c',
 
 args = parser.parse_args()
 print(args)
-b0cod = args.b0c
-b1cod = args.b1c
-b2cod = args.b2c
-
 if args.c == '':
   print('-c <empty>')
 elif args.c == 'all':
   print('-c all')
-elif args.c == 'eject':
+elif args.c == 'em':
   for i in range(args.r):
     card_eject();
     card_sort(args.b);
