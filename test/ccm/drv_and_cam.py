@@ -22,11 +22,13 @@ eject_motor_adr = 0x65
 sorter_motor_adr = 0x60
 
 eject_motor_shake_speed = 40     # 0..63
+eject_motor_throw_out_speed = 48 # 0..63
+eject_motor_throw_out_time = 0.28
 
-sorter_motor_basket_0_1_speed = 14      # 0..63
-sorter_motor_basket_0_1_time = 2.1      # time in seconds
+sorter_motor_basket_0_1_speed = 14      # 0..63, speed should be very low
+sorter_motor_basket_0_1_time = 1.8      # time in seconds
 
-sorter_motor_basket_2_3_speed = 63      # 0..63
+sorter_motor_basket_2_3_speed = 63      # 0..63, speed should be very high
 sorter_motor_basket_2_3_time = 0.8      # time in seconds
 
 jpeg_full_image_quality=10      # 0..100
@@ -90,13 +92,13 @@ def clean_str(s):
 def card_eject():
 	# try to separate lowest card
 	eject_motor_shake(5, 0.04, 0.03)
-	eject_motor_shake(20, 0.05, 0.04)
+	eject_motor_shake(24, 0.05, 0.04)
 
 	# throw out lowest card
-	motor_run(eject_motor_adr, 30, 0)
-	time.sleep(0.30)
+	motor_run(eject_motor_adr, eject_motor_throw_out_speed, 0)
+	time.sleep(eject_motor_throw_out_time)
 	motor_coast(eject_motor_adr)
-	time.sleep(0.1)
+	time.sleep(0.6)
 
 	# pull back second lowest card
 	motor_run(eject_motor_adr, 25, 1)
@@ -119,6 +121,12 @@ def card_eject():
 	time.sleep(0.1)
 
 def card_sort(basket):
+  # try to move the the card a little bit into the desired direction
+  motor_run(sorter_motor_adr,7,1)
+  time.sleep(0.04)
+  motor_break(sorter_motor_adr)
+  time.sleep(0.4)
+  # after this throw out the card with very low or very high speed
   if (basket & 2) == 0:
     motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
     time.sleep(sorter_motor_basket_0_1_time)
@@ -353,9 +361,9 @@ parser.add_argument('-c',
                     default='all',
                     const='all',
                     nargs='?',
-                    choices=['em', 'sort', 'all'],
+                    choices=['eb', 'em', 'sm', 'all'],
                     help='''Define command to execute (default: %(default)s)
-    em: Eject a card into sorter and move the card into a basket (uses -b and -r)
+    eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
 ''')
 parser.add_argument('-b', 
   action='store',
@@ -364,13 +372,14 @@ parser.add_argument('-b',
   const=0,
   type=int,
   help='target basket number')
-parser.add_argument('-r', 
-  action='store',
-  nargs='?', 
-  default=1,
-  const=1,
-  type=int,
-  help='repeat count')
+parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count')
+parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed')
+parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds')
+parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction')
+parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed')
+parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds')
+parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction')
+
 
 # parser.add_argument('eject')
 # parser.add_argument('sort')
@@ -386,8 +395,17 @@ if args.c == '':
   print('-c <empty>')
 elif args.c == 'all':
   sort_machine();
-elif args.c == 'em':
+elif args.c == 'eb':
   for i in range(args.r):
     card_eject();
     card_sort(args.b);
-
+elif args.c == 'em':
+  motor_run(eject_motor_adr,args.ems,args.emd)
+  time.sleep(args.emt/1000.0)
+  motor_break(eject_motor_adr)
+elif args.c == 'sm':
+  motor_run(sorter_motor_adr,args.sms,args.smd)
+  time.sleep(args.smt/1000.0)
+  motor_break(sorter_motor_adr)
+  
+  
