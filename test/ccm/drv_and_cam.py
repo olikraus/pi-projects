@@ -298,26 +298,36 @@ def find_card(carddic, ocr_name):
   return [carddic[smin], smin, dmin]
 
 def eval_cond(cond, prop):
-  tc = prop["tc"]
-  ts = prop["ts"]
-  ti = prop["ti"]
-  ta = prop["ta"]
-  tl = prop["tl"]
-  te = prop["te"]
-  tp = prop["tp"]
+  tc = prop["tc"]       # Creature
+  ts = prop["ts"]       # Sorcery
+  ti = prop["ti"]       # Instant
+  ta = prop["ta"]       # Artefact
+  tl = prop["tl"]       # Land
+  te = prop["te"]       # Enhancement
+  tp = prop["tp"]       # Planeswalker
   cmc = prop["c"]
-  r = prop["r"]
+  r = prop["r"]                 # rarity 0=common, 1=uncommon, 2=rare, 3=mythic
   cw = "W" in prop["i"]
   cb = "B" in prop["i"]
   cr = "R" in prop["i"]
   cg = "G" in prop["i"]
   cu = "U" in prop["i"]
-  print('cmc='+str(cmc))
-  #return eval(cond);
+  #print('cmc='+str(cmc))
+  return eval(cond)
+
+def get_basket_number(prop):
+  if eval_cond(args.b0c, prop):
+    return 0
+  if eval_cond(args.b1c, prop):
+    return 1
+  if eval_cond(args.b2c, prop):
+    return 2
+  return 3
+  
   
 def sort_machine():
   card_dic = read_json('mtg_card_dic.json')
-  card_prop = read_json('mtg_card_prop_full.json')
+  card_prop = read_json('mtg_card_prop.json')
 
 
   camera = PiCamera()
@@ -351,7 +361,8 @@ def sort_machine():
     os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
     #print( cardv[1] )
     #print( clean_str( cardv[1] ))
-    eval_cond('', card_prop[cardv[0]])
+    basket_number = get_basket_number(card_prop[cardv[0]])
+    print(basket_number)
     card_sort(0)
     append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
     
@@ -361,9 +372,25 @@ parser.add_argument('-c',
                     default='all',
                     const='all',
                     nargs='?',
-                    choices=['eb', 'em', 'sm', 'all'],
+                    choices=['eb', 'em', 'sm', 'tc', 'all'],
                     help='''Define command to execute (default: %(default)s)
     eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
+    tc: test basket conditions b0c, b1c and b2c
+      Allowed variabls in conditions:
+        tc: Creature?
+        ts: Sorcery?
+        ti: Instant?
+        ta: Artifact?
+        tl: Land?
+        te: Enchantment?
+        tp: Planeswalker?
+        cmc: Converted mana cost
+        r: rarity 0=common, 1=uncommon, 2=rare, 3=mythic
+        cw: Is white card?
+        cb: Is black card?
+        cr: Is red card?
+        cg: Is green card?
+        cu: Is blue card?
 ''')
 parser.add_argument('-b', 
   action='store',
@@ -372,13 +399,16 @@ parser.add_argument('-b',
   const=0,
   type=int,
   help='target basket number')
-parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count')
-parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed')
-parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds')
-parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction')
-parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed')
-parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds')
-parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction')
+parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count (for -c em)')
+parser.add_argument('-b0c',  action='store', nargs='?',  default='tc', help='basket 0 condition')
+parser.add_argument('-b1c',  action='store', nargs='?',  default='ts or ti or te', help='basket 1 condition')
+parser.add_argument('-b2c',  action='store', nargs='?',  default='tl or ta', help='basket 2 condition')
+parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed (for -c em)')
+parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds (for -c em)')
+parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction (for -c em)')
+parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
+parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
+parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
 
 
 # parser.add_argument('eject')
@@ -407,5 +437,13 @@ elif args.c == 'sm':
   motor_run(sorter_motor_adr,args.sms,args.smd)
   time.sleep(args.smt/1000.0)
   motor_break(sorter_motor_adr)
+elif args.c == 'tc':
+  card_prop = read_json('mtg_card_prop.json')
+  print(args.b0c)
+  print(eval_cond(args.b0c, card_prop[0]));
+  print(args.b1c)
+  print(eval_cond(args.b1c, card_prop[0]));
+  print(args.b2c)
+  print(eval_cond(args.b2c, card_prop[0]));
   
   
