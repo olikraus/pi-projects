@@ -22,11 +22,11 @@ eject_motor_adr = 0x65
 sorter_motor_adr = 0x60
 
 eject_motor_shake_speed = 40     # 0..63
-eject_motor_throw_out_speed = 48 # 0..63
-eject_motor_throw_out_time = 0.28
+eject_motor_throw_out_speed = 50 # 0..63
+eject_motor_throw_out_time = 0.27
 
-sorter_motor_basket_0_1_speed = 14      # 0..63, speed should be very low
-sorter_motor_basket_0_1_time = 1.8      # time in seconds
+sorter_motor_basket_0_1_speed = 16      # 0..63, speed should be very low, however a minimal speed is required (>9)
+sorter_motor_basket_0_1_time = 0.25      # time in seconds
 
 sorter_motor_basket_2_3_speed = 63      # 0..63, speed should be very high
 sorter_motor_basket_2_3_time = 0.8      # time in seconds
@@ -91,7 +91,7 @@ def clean_str(s):
   
 def card_eject():
 	# try to separate lowest card
-	eject_motor_shake(5, 0.04, 0.03)
+	eject_motor_shake(8, 0.05, 0.05)
 	eject_motor_shake(24, 0.05, 0.04)
 
 	# throw out lowest card
@@ -130,11 +130,18 @@ def card_sort(basket):
   if (basket & 2) == 0:
     motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
     time.sleep(sorter_motor_basket_0_1_time)
+    motor_coast(sorter_motor_adr)
+    time.sleep(0.3)
+    # do another attempt in cases that the first throwout didn't work
+    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
+    time.sleep(sorter_motor_basket_0_1_time)
+    motor_coast(sorter_motor_adr)
+    time.sleep(0.1)
   else:
     motor_run(sorter_motor_adr, sorter_motor_basket_2_3_speed, 1)
     time.sleep(sorter_motor_basket_2_3_time)
-  motor_coast(sorter_motor_adr)
-  time.sleep(0.1)
+    motor_coast(sorter_motor_adr)
+    time.sleep(0.1)
 
 # https://stackoverflow.com/questions/46390779/automatic-white-balancing-with-grayworld-assumption
 
