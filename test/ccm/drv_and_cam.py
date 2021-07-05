@@ -104,15 +104,15 @@ def card_eject():
 	motor_run(eject_motor_adr, 25, 1)
 
 	# in parallel shake card in the sorter and pull back the second lowest card
-	for i in range(6):
-		motor_run(sorter_motor_adr, 15, 0)
-		time.sleep(0.025)
-		motor_break(sorter_motor_adr)
-		time.sleep(0.01)
-		motor_run(sorter_motor_adr, 15, 1)
-		time.sleep(0.025)
-		motor_break(sorter_motor_adr)
-		time.sleep(0.01)
+	#for i in range(6):
+	#	motor_run(sorter_motor_adr, 15, 0)
+	#	time.sleep(0.025)
+	#	motor_break(sorter_motor_adr)
+	#	time.sleep(0.01)
+	#	motor_run(sorter_motor_adr, 15, 1)
+	#	time.sleep(0.025)
+	#	motor_break(sorter_motor_adr)
+	#	time.sleep(0.01)
 	
         # continue with pullback
 	time.sleep(1)
@@ -121,11 +121,20 @@ def card_eject():
 	time.sleep(0.1)
 
 def card_sort(basket):
+  dir = 1
   # try to move the the card a little bit into the desired direction
-  motor_run(sorter_motor_adr,7,1)
+  motor_run(sorter_motor_adr,7,dir)
   time.sleep(0.04)
   motor_break(sorter_motor_adr)
-  time.sleep(0.4)
+  time.sleep(0.3)
+  motor_run(sorter_motor_adr,7,1-dir)
+  time.sleep(0.02)
+  motor_break(sorter_motor_adr)
+  time.sleep(0.1)
+  motor_run(sorter_motor_adr,7,dir)
+  time.sleep(0.04)
+  motor_break(sorter_motor_adr)
+  time.sleep(0.3)
   # after this throw out the card with very low or very high speed
   if (basket & 2) == 0:
     motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
