@@ -25,7 +25,7 @@ eject_motor_shake_speed = 40     # 0..63
 eject_motor_throw_out_speed = 50 # 0..63
 eject_motor_throw_out_time = 0.27
 
-sorter_motor_basket_0_1_speed = 16      # 0..63, speed should be very low, however a minimal speed is required (>9)
+sorter_motor_basket_0_1_speed = 20      # 0..63, speed should be very low, however a minimal speed is required (>9)
 sorter_motor_basket_0_1_time = 0.25      # time in seconds
 
 sorter_motor_basket_2_3_speed = 63      # 0..63, speed should be very high
@@ -101,8 +101,11 @@ def card_eject():
 	time.sleep(0.6)
 
 	# pull back second lowest card
+	# motor_run(eject_motor_adr, 25, 1)
 	motor_run(eject_motor_adr, 25, 1)
-
+	time.sleep(0.1)
+	eject_motor_shake(10, 0.06, 0.08)
+	motor_run(eject_motor_adr, 25, 1)
 	# in parallel shake card in the sorter and pull back the second lowest card
 	#for i in range(6):
 	#	motor_run(sorter_motor_adr, 15, 0)
@@ -115,7 +118,7 @@ def card_eject():
 	#	time.sleep(0.01)
 	
         # continue with pullback
-	time.sleep(1)
+	time.sleep(0.5)
 	# stop pullback
 	motor_coast(eject_motor_adr)
 	time.sleep(0.1)
@@ -123,31 +126,47 @@ def card_eject():
 def card_sort(basket):
   dir = 1
   # try to move the the card a little bit into the desired direction
-  motor_run(sorter_motor_adr,7,dir)
-  time.sleep(0.04)
-  motor_break(sorter_motor_adr)
-  time.sleep(0.3)
-  motor_run(sorter_motor_adr,7,1-dir)
-  time.sleep(0.02)
-  motor_break(sorter_motor_adr)
-  time.sleep(0.1)
-  motor_run(sorter_motor_adr,7,dir)
-  time.sleep(0.04)
-  motor_break(sorter_motor_adr)
-  time.sleep(0.3)
+  #motor_run(sorter_motor_adr,7,dir)
+  #time.sleep(0.04)
+  #motor_break(sorter_motor_adr)
+  #time.sleep(0.3)
+  #motor_run(sorter_motor_adr,7,1-dir)
+  #time.sleep(0.03)
+  #motor_break(sorter_motor_adr)
+  #time.sleep(0.1)
+  #motor_run(sorter_motor_adr,7,dir)
+  #time.sleep(0.04)
+  #motor_break(sorter_motor_adr)
+  #time.sleep(0.3)
   # after this throw out the card with very low or very high speed
   if (basket & 2) == 0:
-    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
+    # try to move the the card a little bit into the desired direction
+    motor_run(sorter_motor_adr,7,dir)
+    time.sleep(0.04)
+    motor_break(sorter_motor_adr)
+    time.sleep(0.3)
+    motor_run(sorter_motor_adr,7,1-dir)
+    time.sleep(0.03)
+    motor_break(sorter_motor_adr)
+    time.sleep(0.1)
+  
+    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, dir)
     time.sleep(sorter_motor_basket_0_1_time)
     motor_coast(sorter_motor_adr)
     time.sleep(0.3)
+    
     # do another attempt in cases that the first throwout didn't work
-    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, 1)
+    motor_run(sorter_motor_adr,7,1-dir)
+    time.sleep(0.03)
+    motor_break(sorter_motor_adr)
+    time.sleep(0.1)
+  
+    motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, dir)
     time.sleep(sorter_motor_basket_0_1_time)
     motor_coast(sorter_motor_adr)
     time.sleep(0.1)
   else:
-    motor_run(sorter_motor_adr, sorter_motor_basket_2_3_speed, 1)
+    motor_run(sorter_motor_adr, sorter_motor_basket_2_3_speed, dir)
     time.sleep(sorter_motor_basket_2_3_time)
     motor_coast(sorter_motor_adr)
     time.sleep(0.1)
