@@ -25,7 +25,7 @@ eject_motor_shake_speed = 40     # 0..63
 eject_motor_throw_out_speed = 50 # 0..63
 eject_motor_throw_out_time = 0.27
 
-sorter_motor_basket_0_1_speed = 20      # 0..63, speed should be very low, however a minimal speed is required (>9)
+sorter_motor_basket_0_1_speed = 15      # 0..63, speed should be very low, however a minimal speed is required (>9)
 sorter_motor_basket_0_1_time = 0.25      # time in seconds
 
 sorter_motor_basket_2_3_speed = 63      # 0..63, speed should be very high
